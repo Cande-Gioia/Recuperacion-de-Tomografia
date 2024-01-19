@@ -188,6 +188,22 @@ def imagen_desde_archivo():
 
     return image, f
 
+def seleccionar_proyeccion():
+    ventana.w_proy.canvas.ax.clear()
+    row = ventana.lw_sinogramas.currentRow()
+    if row < 0:
+        ventana.w_proy.canvas.draw()
+        return
+
+    sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
+    j = ventana.sp_proy2.value()
+    if j >= sino.shape[1]:
+        ventana.w_proy.canvas.draw()
+        return
+    
+    ventana.w_proy.canvas.ax.plot(sino[:,j])
+    ventana.w_proy.canvas.draw()
+
 def seleccionar_im_entrada():
     row = ventana.lw_entrada.currentRow()
     if row >= 0:
@@ -195,6 +211,7 @@ def seleccionar_im_entrada():
         ventana.w_entrada.canvas.ax.imshow(image)
     else:
         ventana.w_entrada.canvas.ax.clear()
+    ventana.w_entrada.canvas.draw()
 
 def seleccionar_sinograma():
     row = ventana.lw_sinogramas.currentRow()
@@ -203,6 +220,8 @@ def seleccionar_sinograma():
         ventana.w_sinograma.canvas.ax.imshow(sino)
     else:
         ventana.w_sinograma.canvas.ax.clear()
+    ventana.w_sinograma.canvas.draw()
+    seleccionar_proyeccion()
 
 def seleccionar_im_salida():    
     row = ventana.lw_salida.currentRow()
@@ -211,6 +230,7 @@ def seleccionar_im_salida():
         ventana.w_salida.canvas.ax.imshow(image)
     else:
         ventana.w_salida.canvas.ax.clear()
+    ventana.w_salida.canvas.draw()
 
 def btn_agregar_entrada_cb():
     image, f = imagen_desde_archivo()
@@ -286,8 +306,13 @@ def btn_radon_inv_cb():
 
 
 if __name__ == "__main__":
-    ventana.show()
+    ventana.sp_proy1.setValue(180)
+    ventana.sp_proy2.setValue(1)
 
+    ventana.sp_proy2.valueChanged.connect(seleccionar_proyeccion)
+    ventana.lw_entrada.currentItemChanged.connect(seleccionar_im_entrada)
+    ventana.lw_sinogramas.currentItemChanged.connect(seleccionar_sinograma)
+    ventana.lw_salida.currentItemChanged.connect(seleccionar_im_salida)
     ventana.btn_agregar_entrada.clicked.connect(btn_agregar_entrada_cb)
     ventana.btn_eliminar_entrada.clicked.connect(btn_eliminar_entrada_cb)
     ventana.btn_eliminar_salida.clicked.connect(btn_eliminar_salida_cb)
@@ -296,8 +321,7 @@ if __name__ == "__main__":
     ventana.btn_radon.clicked.connect(btn_radon_cb)
     ventana.btn_radon_inv.clicked.connect(btn_radon_inv_cb)
     ventana.btn_radon_inv_2.clicked.connect(btn_radon_inv_cb)
-    ventana.lw_entrada.currentItemChanged.connect(seleccionar_im_entrada)
-    ventana.lw_sinogramas.currentItemChanged.connect(seleccionar_sinograma)
-    ventana.lw_salida.currentItemChanged.connect(seleccionar_im_salida)
+
+    ventana.show()
     app.exec()
 

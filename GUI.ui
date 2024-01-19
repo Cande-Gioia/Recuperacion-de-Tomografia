@@ -18,7 +18,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -38,8 +38,14 @@
           <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0">
            <item>
             <widget class="QLabel" name="label_2">
+             <property name="layoutDirection">
+              <enum>Qt::LeftToRight</enum>
+             </property>
              <property name="text">
               <string>imagen original</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
              </property>
             </widget>
            </item>
@@ -106,8 +112,8 @@
                   <widget class="QSpinBox" name="sp_proy1">
                    <property name="maximumSize">
                     <size>
-                     <width>40</width>
-                     <height>15</height>
+                     <width>50</width>
+                     <height>20</height>
                     </size>
                    </property>
                    <property name="minimum">
@@ -142,6 +148,9 @@
             <widget class="QLabel" name="label">
              <property name="text">
               <string>reconstrucción</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
              </property>
             </widget>
            </item>
@@ -257,6 +266,9 @@
              <property name="text">
               <string>sinograma</string>
              </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
             </widget>
            </item>
            <item>
@@ -327,6 +339,19 @@
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_9">
              <item>
+              <spacer name="horizontalSpacer_2">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
               <widget class="QLabel" name="label_5">
                <property name="text">
                 <string>#P</string>
@@ -337,9 +362,12 @@
               <widget class="QSpinBox" name="sp_proy2">
                <property name="maximumSize">
                 <size>
-                 <width>40</width>
-                 <height>15</height>
+                 <width>50</width>
+                 <height>20</height>
                 </size>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
                </property>
                <property name="minimum">
                 <number>1</number>
@@ -348,6 +376,19 @@
                 <number>999</number>
                </property>
               </widget>
+             </item>
+             <item>
+              <spacer name="horizontalSpacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
              </item>
             </layout>
            </item>
