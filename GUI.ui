@@ -224,12 +224,12 @@
                  </item>
                  <item>
                   <property name="text">
-                   <string>FBP V1</string>
+                   <string>FBP</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>FBP V2</string>
+                   <string>Fourier</string>
                   </property>
                  </item>
                  <item>

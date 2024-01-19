@@ -22,7 +22,7 @@ from scipy import optimize
 app = QtWidgets.QApplication([])
 ventana = uic.loadUi("GUI.ui")
 
-P = -1
+i_filtro = -1
 
 def radon(im, P):
     angles = np.arange(0, 180, 180/P)
@@ -54,29 +54,7 @@ def ri_ART(s):
 
     return ir
 
-def ri_FBP1(s):
-    N = s.shape[0]
-    P = s.shape[1]
-    angles = np.arange(0, 180, 180/P)
-
-    bp = np.zeros((N,N))
-    tmp = bp.copy()
-
-    ramlak = abs(np.linspace(-1,1,P))
-
-
-    fft_R = fftshift(fft(s))
-    filtproj = ifftshift(fft_R * ramlak)
-    s = np.real(ifft(filtproj))
-
-    for i in range(P):
-        tmp = np.tile(s[:,i], (N, 1))
-        tmp = transform.rotate(tmp, angles[i], order=1, clip=True)
-        bp = bp + tmp
-
-    return bp
-
-def ri_FBP2(s):
+def ri_FBP(s):
     N = s.shape[0]
     P = s.shape[1]
     angles = np.arange(0, 180, 180/P)
@@ -99,6 +77,13 @@ def ri_FBP2(s):
         bp = bp + tmp
 
     return bp
+
+def ri_fourier(s):
+    N = s.shape[0]
+    P = s.shape[1]
+    angles = np.arange(0, 180, 180/P)
+
+    return s
 
 def ri_GC(s):
     N = s.shape[0]
@@ -175,12 +160,15 @@ def ri_GC(s):
 
     return res.x.reshape(N, N)
 
-radon_inv_callbacks = [ri_python, ri_ART, ri_FBP1, ri_FBP2, ri_GC]
+radon_inv_callbacks = [ri_python, ri_ART, ri_FBP, ri_fourier, ri_GC]
 
 def imagen_desde_archivo():
     options = QFileDialog.Options()
     # options |= QFileDialog.DontUseNativeDialog
     f, _ = QFileDialog.getOpenFileName(ventana, "Select files", "","All Files (*);;JPG files (*.jpg);;PNG files (*.png)", options=options)
+
+    if f == '':
+        return None, ''
 
     input = io.imread(f)
     image = util.img_as_float32(transform.resize(input, (256, 256), anti_aliasing=True))[...,0]
@@ -234,6 +222,8 @@ def seleccionar_im_salida():
 
 def btn_agregar_entrada_cb():
     image, f = imagen_desde_archivo()
+    if not image:
+        return
 
     qlwt = QListWidgetItem()
     qlwt.setData(Qt.UserRole, image)
@@ -244,7 +234,9 @@ def btn_agregar_entrada_cb():
     seleccionar_im_entrada()
 
 def btn_agregar_sinograma_cb(): 
-    image, f = imagen_desde_archivo()
+    image, f = imagen_desde_archivo()    
+    if not image:
+        return
 
     qlwt = QListWidgetItem()
     qlwt.setData(Qt.UserRole, image)
@@ -291,6 +283,7 @@ def btn_radon_inv_cb():
     sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
 
     metodo = ventana.cb_metodo.currentIndex()
+    i_filtro = ventana.cb_filtro.currentIndex()
     reconstruccion = radon_inv_callbacks[metodo](sino)
     nombre = ventana.lw_sinogramas.item(row).text()
     i = nombre.rindex("_")
