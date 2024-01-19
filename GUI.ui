@@ -46,7 +46,7 @@
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="85,15">
              <item>
-              <widget class="MplWidget" name="w_imagen" native="true"/>
+              <widget class="MplWidget" name="w_entrada" native="true"/>
              </item>
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_5">
@@ -64,17 +64,17 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QListWidget" name="lw_imagenes"/>
+                <widget class="QListWidget" name="lw_entrada"/>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_agregar_imagen">
+                <widget class="QPushButton" name="btn_agregar_entrada">
                  <property name="text">
                   <string>agregar...</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_guardar_2">
+                <widget class="QPushButton" name="btn_eliminar_entrada">
                  <property name="text">
                   <string>eliminar</string>
                  </property>
@@ -116,6 +116,9 @@
                    <property name="maximum">
                     <number>999</number>
                    </property>
+                   <property name="singleStep">
+                    <number>1</number>
+                   </property>
                   </widget>
                  </item>
                 </layout>
@@ -145,7 +148,7 @@
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="85,15">
              <item>
-              <widget class="MplWidget" name="w_reconst" native="true"/>
+              <widget class="MplWidget" name="w_salida" native="true"/>
              </item>
              <item>
               <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -163,10 +166,10 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QListWidget" name="lw_reconstrucciones"/>
+                <widget class="QListWidget" name="lw_salida"/>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_guardar">
+                <widget class="QPushButton" name="btn_eliminar_salida">
                  <property name="text">
                   <string>eliminar</string>
                  </property>
@@ -186,7 +189,33 @@
                 </spacer>
                </item>
                <item>
-                <widget class="QComboBox" name="cb_metodo"/>
+                <widget class="QComboBox" name="cb_metodo">
+                 <item>
+                  <property name="text">
+                   <string>Python</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>ART</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>FBP V1</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>FBP V2</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>GC</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item>
                 <widget class="QComboBox" name="cb_filtro"/>
@@ -261,7 +290,7 @@
                 </widget>
                </item>
                <item>
-                <widget class="QPushButton" name="btn_guardar_sinograma">
+                <widget class="QPushButton" name="btn_eliminar_sinograma">
                  <property name="text">
                   <string>eliminar</string>
                  </property>
