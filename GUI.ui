@@ -18,7 +18,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -38,11 +38,19 @@
           <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0,0">
            <item>
             <widget class="QLabel" name="label_2">
-             <property name="layoutDirection">
-              <enum>Qt::LeftToRight</enum>
+             <property name="font">
+              <font>
+               <pointsize>12</pointsize>
+              </font>
              </property>
              <property name="text">
               <string>imagen original</string>
+             </property>
+             <property name="textFormat">
+              <enum>Qt::AutoText</enum>
+             </property>
+             <property name="scaledContents">
+              <bool>false</bool>
              </property>
              <property name="alignment">
               <set>Qt::AlignCenter</set>
@@ -146,6 +154,11 @@
           <layout class="QVBoxLayout" name="verticalLayout_2">
            <item>
             <widget class="QLabel" name="label">
+             <property name="font">
+              <font>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>reconstrucción</string>
              </property>
@@ -263,6 +276,11 @@
           <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0,0">
            <item>
             <widget class="QLabel" name="label_3">
+             <property name="font">
+              <font>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
              <property name="text">
               <string>sinograma</string>
              </property>

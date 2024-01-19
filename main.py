@@ -28,92 +28,92 @@ def radon(im, P):
     angles = np.arange(0, 180, 180/P)
     return transform.radon(im, theta=angles)
 
-def ri_python(s, P):
+def ri_python(s):
+    N = s.shape[0]
+    P = s.shape[1]
     angles = np.arange(0, 180, 180/P)
+
     return transform.iradon(s, theta=angles)
 
-def ri_ART(s, P):
-    angles = np.arange(0, 180, 180/P)
+def ri_ART(s):
     N = s.shape[0]
+    P = s.shape[1]
+    angles = np.arange(0, 180, 180/P)
+
     ir = np.zeros((N, N))
-    tdiff = np.zeros((N, N))
     step = angles[1] - angles[0]
-    #L = len(ir)
 
     niter = 1
     for i in range(niter):
-        for j in range(len(angles)):
-            ir = transform.rotate(ir, step, order=3)
-            tmp = s[:,j].T * N
-            temp = np.sum(ir, axis=1).T
+        for j in reversed(range(P)):
+            ir = transform.rotate(ir, step, order=5)
+            tmp = s[:,j] * N
+            temp = np.sum(ir, axis=0)
             diff = (tmp - temp) / N
-            
-            for k in range(N):
-                tdiff[:, k] = diff
-
-            ir = ir + tdiff
+            ir = ir + np.tile(diff, (N, 1))
 
     return ir
 
-def ri_FBP1(s, P):
-    angles = np.arange(0, 180, 180/P)
+def ri_FBP1(s):
     N = s.shape[0]
+    P = s.shape[1]
+    angles = np.arange(0, 180, 180/P)
 
     bp = np.zeros((N,N))
     tmp = bp.copy()
 
-    ramlak = abs(np.linspace(-1,1,P).T)
-    #ramlak = np.ones(N).T
+    ramlak = abs(np.linspace(-1,1,P))
 
 
-    fft_R = fft.fftshift(fft.fft(s))
-    filtproj = fft.ifftshift(fft_R * ramlak)
-    sg = np.real(fft.ifft(filtproj))
+    fft_R = fftshift(fft(s))
+    filtproj = ifftshift(fft_R * ramlak)
+    s = np.real(ifft(filtproj))
 
     for i in range(P):
-        tmp = np.tile(sg[:,i].T, (N, 1))
+        tmp = np.tile(s[:,i], (N, 1))
         tmp = transform.rotate(tmp, angles[i], order=1, clip=True)
         bp = bp + tmp
 
     return bp
 
-def ri_FBP2(s, P):
-    angles = np.arange(0, 180, 180/P)
+def ri_FBP2(s):
     N = s.shape[0]
+    P = s.shape[1]
+    angles = np.arange(0, 180, 180/P)
 
-    bp = np.zeros((len(s),len(s)))
+    bp = np.zeros((N,N))
     tmp = bp.copy()
 
-    ramlak = abs(np.linspace(-1,1,len(s)))
+    ramlak = abs(np.linspace(-1,1,N))
 
     sinog = np.swapaxes(s, 0, 1)
     fft_R = fftshift(fft(sinog))
     filtproj = ifftshift(fft_R * ramlak)
     s = np.real(ifft(filtproj))
-
     s = np.swapaxes(s, 0, 1)
 
 
-    for i in range(len(s[0,:])):
-        tmp = np.repeat(s[:,i], len(bp)).reshape((len(bp), len(bp)))
+    for i in range(P):
+        tmp = np.tile(s[:,i], (N, 1))
         tmp = transform.rotate(tmp, angles[i], order=1, clip=True)
         bp = bp + tmp
 
     return bp
 
-def ri_GC(s, P):
-    angles = np.arange(0, 180, 180/P)
+def ri_GC(s):
     N = s.shape[0]
-
-    rot_mat = []
+    P = s.shape[1]
+    angles = np.arange(0, 180, 180/P)
 
     pi = np.pi
     cos = np.cos
     sin = np.sin
 
-    angles = np.arange(0, 180, 180/P)
+    rot_mat = []
     for ang in angles:
-        rot_mat.append(np.array([[cos(ang*pi/180), sin(ang*pi/180)], [-sin(ang*pi/180), cos(ang*pi/180)]], dtype=np.float32))
+        rot_mat.append(np.array([[cos(ang*pi/180), -sin(ang*pi/180)], 
+                                 [sin(ang*pi/180), cos(ang*pi/180)]], 
+                                 dtype=np.float32))
 
     col_ptr = np.empty(N*N + 1, dtype=np.int32)
     q = 0
@@ -126,8 +126,8 @@ def ri_GC(s, P):
 
     a = 1
 
-    for xi in reversed(X):
-        for yi in Y:
+    for yi in Y:
+        for xi in X:
             for r, rot in enumerate(rot_mat):
                 v = (rot @ [xi,yi])
 
@@ -291,7 +291,7 @@ def btn_radon_inv_cb():
     sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
 
     metodo = ventana.cb_metodo.currentIndex()
-    reconstruccion = radon_inv_callbacks[metodo](sino, sino.shape[1])
+    reconstruccion = radon_inv_callbacks[metodo](sino)
     nombre = ventana.lw_sinogramas.item(row).text()
     i = nombre.rindex("_")
     if i != -1:
