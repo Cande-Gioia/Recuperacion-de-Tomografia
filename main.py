@@ -293,7 +293,7 @@ def fft_disp():
 
     if row >= 0:
         image = ventana.lw_entrada.item(row).data(Qt.UserRole)
-        transform = fft2(image)
+        transform = fftshift(fft2(ifftshift(image)))
         ventana.w_fft.canvas.ax.imshow(np.abs(transform))
     else:
         ventana.w_fft.canvas.ax.clear()
