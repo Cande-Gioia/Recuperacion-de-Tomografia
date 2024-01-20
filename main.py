@@ -14,7 +14,7 @@ import matplotlib as mpl
 mpl.rc('image', cmap='gray') #para no tener que pasar cmap='gray' cada vez que ploteo algo
 
 from scipy import fft
-from scipy.fft import fftfreq, fftshift, ifft, ifftshift, fft
+from scipy.fft import fftfreq, fftshift, ifft, ifftshift, fft, fft2
 from scipy import sparse
 from scipy.signal import get_window
 from scipy import optimize
@@ -22,7 +22,7 @@ from scipy import optimize
 app = QtWidgets.QApplication([])
 ventana = uic.loadUi("GUI.ui")
 
-i_filtro = -1
+
 
 def radon(im, P):
     angles = np.arange(0, 180, 180/P)
@@ -54,6 +54,30 @@ def ri_ART(s):
 
     return ir
 
+def make_filter(filtro, N): 
+    freq_resp = abs(np.linspace(-1,1,N))
+
+    if filtro == 'Ram-Lak':
+        freq_resp = freq_resp
+
+    elif filtro == 'Shepp-Logan':
+        freq_resp = freq_resp * np.sinc(freq_resp/2)
+
+    elif filtro == 'Coseno':
+        freq_resp = freq_resp * get_window('cosine', len(freq_resp))
+
+    elif filtro == 'Hamming':
+        freq_resp = freq_resp * get_window('hamming', len(freq_resp))
+
+    elif filtro == 'Hann':
+        freq_resp = freq_resp * get_window('hann', len(freq_resp))
+
+    else:
+        freq_resp = 1
+
+    return freq_resp
+
+
 def ri_FBP(s):
     N = s.shape[0]
     P = s.shape[1]
@@ -62,11 +86,13 @@ def ri_FBP(s):
     bp = np.zeros((N,N))
     tmp = bp.copy()
 
-    ramlak = abs(np.linspace(-1,1,N))
+    i_filtro = ventana.cb_filtro.currentText()
+
+    filt = make_filter(i_filtro, N)
 
     sinog = np.swapaxes(s, 0, 1)
     fft_R = fftshift(fft(sinog))
-    filtproj = ifftshift(fft_R * ramlak)
+    filtproj = ifftshift(fft_R * filt)
     s = np.real(ifft(filtproj))
     s = np.swapaxes(s, 0, 1)
 
@@ -190,7 +216,45 @@ def seleccionar_proyeccion():
         return
     
     ventana.w_proy.canvas.ax.plot(sino[:,j])
+    ventana.w_proy.canvas.ax.grid()
     ventana.w_proy.canvas.draw()
+
+def seleccionar_proyeccion_filtrada():
+    ventana.w_proy_filt.canvas.ax.clear()
+    row = ventana.lw_sinogramas.currentRow()
+    if row < 0:
+        ventana.w_proy_filt.canvas.draw()
+        return
+
+    sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
+    j = ventana.sp_proy_filt.value()
+    if j >= sino.shape[1]:
+        ventana.w_proy_filt.canvas.draw()
+        return
+
+    s = sino[:,j]
+
+    i_filtro = ventana.cb_filtro_2.currentText()
+
+    filt = make_filter(i_filtro, len(s))
+ 
+    fft_R = fftshift(fft(s))
+    filtproj = ifftshift(fft_R * filt)
+    sg = np.real(ifft(filtproj))
+
+    ventana.w_proy_filt.canvas.ax.plot(sg)
+    ventana.w_proy_filt.canvas.ax.grid()
+    ventana.w_proy_filt.canvas.draw()
+
+def seleccionar_filtro(val):
+    filt = make_filter(val, 256)
+
+    ventana.w_filtro.canvas.ax.clear()
+    ventana.w_filtro.canvas.ax.plot(filt)
+    ventana.w_filtro.canvas.ax.grid()
+    ventana.w_filtro.canvas.draw()
+
+    seleccionar_proyeccion_filtrada()
 
 def seleccionar_im_entrada():
     row = ventana.lw_entrada.currentRow()
@@ -210,6 +274,8 @@ def seleccionar_sinograma():
         ventana.w_sinograma.canvas.ax.clear()
     ventana.w_sinograma.canvas.draw()
     seleccionar_proyeccion()
+    seleccionar_proyeccion_filtrada()
+
 
 def seleccionar_im_salida():    
     row = ventana.lw_salida.currentRow()
@@ -220,10 +286,23 @@ def seleccionar_im_salida():
         ventana.w_salida.canvas.ax.clear()
     ventana.w_salida.canvas.draw()
 
+def fft_disp():
+    row = ventana.lw_entrada.currentRow()
+    if row < 0:
+        return
+
+    if row >= 0:
+        image = ventana.lw_entrada.item(row).data(Qt.UserRole)
+        transform = fft2(image)
+        ventana.w_fft.canvas.ax.imshow(np.abs(transform))
+    else:
+        ventana.w_fft.canvas.ax.clear()
+    ventana.w_fft.canvas.draw()
+
 def btn_agregar_entrada_cb():
     image, f = imagen_desde_archivo()
-    if not image:
-        return
+    #if not image:  #comentado porque si no crashea
+    #    return
 
     qlwt = QListWidgetItem()
     qlwt.setData(Qt.UserRole, image)
@@ -232,6 +311,7 @@ def btn_agregar_entrada_cb():
     ventana.lw_entrada.setCurrentRow(ventana.lw_entrada.count() - 1)
 
     seleccionar_im_entrada()
+    fft_disp()
 
 def btn_agregar_sinograma_cb(): 
     image, f = imagen_desde_archivo()    
@@ -274,6 +354,9 @@ def btn_radon_cb():
     ventana.lw_sinogramas.addItem(qlwt)
     ventana.lw_sinogramas.setCurrentRow(ventana.lw_sinogramas.count() - 1)
     seleccionar_sinograma()
+    
+
+
 
 def btn_radon_inv_cb():
     row = ventana.lw_sinogramas.currentRow()
@@ -283,7 +366,7 @@ def btn_radon_inv_cb():
     sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
 
     metodo = ventana.cb_metodo.currentIndex()
-    i_filtro = ventana.cb_filtro.currentIndex()
+
     reconstruccion = radon_inv_callbacks[metodo](sino)
     nombre = ventana.lw_sinogramas.item(row).text()
     i = nombre.rindex("_")
@@ -303,6 +386,8 @@ if __name__ == "__main__":
     ventana.sp_proy2.setValue(1)
 
     ventana.sp_proy2.valueChanged.connect(seleccionar_proyeccion)
+    ventana.sp_proy_filt.valueChanged.connect(seleccionar_proyeccion_filtrada)
+    ventana.cb_filtro_2.currentTextChanged.connect(seleccionar_filtro)
     ventana.lw_entrada.currentItemChanged.connect(seleccionar_im_entrada)
     ventana.lw_sinogramas.currentItemChanged.connect(seleccionar_sinograma)
     ventana.lw_salida.currentItemChanged.connect(seleccionar_im_salida)
