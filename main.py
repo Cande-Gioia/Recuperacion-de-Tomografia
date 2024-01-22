@@ -4,7 +4,9 @@ from PyQt5.QtCore import Qt, QCoreApplication
 
 import numpy as np
 import matplotlib.pyplot as plt 
-from skimage import color, io, util, transform
+import matplotlib.colors as colors 
+
+from skimage import color, io, util, transform, exposure
 from skimage.data import shepp_logan_phantom
 from skimage.transform import rescale
 
@@ -145,9 +147,14 @@ def ri_fourier(s , im):
     ).reshape((fourier_resolution,fourier_resolution))
 
     # Transform from 2D Fourier space back to a reconstruction of the original image
-    recon=np.real(fftshift(ifft2(ifftshift(fft2))))
-
-    return recon
+    fourier_recon=np.real(fftshift(ifft2(ifftshift(fft2))))
+    fourier_recon = exposure.rescale_intensity(
+    fourier_recon,
+    in_range=(0.0, 1.0),
+    out_range=np.float32
+)
+    #fourier_recon = colors.Normalize(vmin=0.0, vmax=1)
+    return fourier_recon
 
 def ri_GC(s):
     N = s.shape[0]
