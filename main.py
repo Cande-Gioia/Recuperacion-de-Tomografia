@@ -14,11 +14,12 @@ import matplotlib as mpl
 mpl.rc('image', cmap='gray') #para no tener que pasar cmap='gray' cada vez que ploteo algo
 
 from scipy import fft
-from scipy.fft import fftfreq, fftshift, ifft, ifftshift, fft, fft2
+from scipy.fft import fftfreq, fftshift, ifft, ifftshift, fft, fft2, ifft2
 from scipy import sparse
 from scipy.signal import get_window
 from scipy import optimize
-
+from scipy import interpolate
+from scipy import ndimage
 app = QtWidgets.QApplication([])
 ventana = uic.loadUi("GUI.ui")
 
@@ -104,12 +105,49 @@ def ri_FBP(s):
 
     return bp
 
-def ri_fourier(s):
+def ri_fourier(s , im):
     N = s.shape[0]
     P = s.shape[1]
+
     angles = np.arange(0, 180, 180/P)
 
-    return s
+    fourier_resolution =  256
+    image_2D=transform.resize(im,(fourier_resolution,fourier_resolution),mode='constant') 
+    sinogram = []
+    for i in range(P):
+        row = ndimage.rotate(image_2D,np.rad2deg((np.pi*i)/P), order=3, reshape=False, mode='constant', cval=0.0)
+        sinogram.append (np.sum(row, axis=0))  
+    sinogram = np.array(sinogram)
+    s = sinogram
+    sinogram_fft_rows=fftshift(fft(ifftshift(s,axes=1)),axes=1)
+
+    # Coordinates of sinogram FFT-ed rows' samples in 2D FFT space
+    a=np.array([(np.pi*i)/P for i in range(P)])
+    r=np.arange(fourier_resolution)-fourier_resolution/2
+    r,a=np.meshgrid(r,a)
+    r=r.flatten()
+    a=a.flatten()
+    srcx=(fourier_resolution/2)+r*np.cos(a)
+    srcy=(fourier_resolution/2)+r*np.sin(a)
+
+    # Coordinates of regular grid in 2D FFT space
+    dstx,dsty=np.meshgrid(np.arange(fourier_resolution),np.arange(fourier_resolution))
+    dstx=dstx.flatten()
+    dsty=dsty.flatten()
+
+# Interpolation of the 2D Fourier space grid from the transformed sinogram rows
+    fft2=interpolate.griddata(
+    (srcy,srcx),#points
+    sinogram_fft_rows.flatten(),#values
+    (dsty,dstx),#meshgrid
+    method='cubic',
+    fill_value=0.0
+    ).reshape((fourier_resolution,fourier_resolution))
+
+    # Transform from 2D Fourier space back to a reconstruction of the original image
+    recon=np.real(fftshift(ifft2(ifftshift(fft2))))
+
+    return recon
 
 def ri_GC(s):
     N = s.shape[0]
@@ -360,14 +398,24 @@ def btn_radon_cb():
 
 def btn_radon_inv_cb():
     row = ventana.lw_sinogramas.currentRow()
+    row2 = ventana.lw_entrada.currentRow()
     if row < 0:
         return
+    elif row2 < 0:
+        return
+    
+
+
+    image = ventana.lw_entrada.item(row2).data(Qt.UserRole)
     
     sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
 
     metodo = ventana.cb_metodo.currentIndex()
 
-    reconstruccion = radon_inv_callbacks[metodo](sino)
+    if metodo == 3 :
+         reconstruccion = radon_inv_callbacks[metodo](sino, image)
+    else:
+        reconstruccion = radon_inv_callbacks[metodo](sino)
     nombre = ventana.lw_sinogramas.item(row).text()
     i = nombre.rindex("_")
     if i != -1:
