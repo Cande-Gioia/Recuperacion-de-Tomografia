@@ -115,14 +115,12 @@ def ri_fourier(s , im):
 
     fourier_resolution =  256
     image_2D=transform.resize(im,(fourier_resolution,fourier_resolution),mode='constant') 
-    sinogram = []
-    for i in range(P):
-        row = ndimage.rotate(image_2D,np.rad2deg((np.pi*i)/P), order=3, reshape=False, mode='constant', cval=0.0)
-        sinogram.append (np.sum(row, axis=0))  
-    sinogram = np.array(sinogram)
-    s = sinogram
-    sinogram_fft_rows=fftshift(fft(ifftshift(s,axes=1)),axes=1)
-
+   
+    
+    s_rotate = transform.rotate(s, 270, resize = True)
+    s_rotate = np.array(s_rotate)
+    sinogram_fft_rows=fftshift(fft(ifftshift(s_rotate,axes=1)),axes=1)
+    
     # Coordinates of sinogram FFT-ed rows' samples in 2D FFT space
     a=np.array([(np.pi*i)/P for i in range(P)])
     r=np.arange(fourier_resolution)-fourier_resolution/2
