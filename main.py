@@ -231,6 +231,21 @@ def ri_GC(s):
 
 radon_inv_callbacks = [ri_python, ri_ART, ri_FBP, ri_fourier, ri_GC]
 
+def fft_disp():
+    row = ventana.lw_entrada.currentRow()
+    if row < 0:
+        return
+
+    if row >= 0:
+        image = ventana.lw_entrada.item(row).data(Qt.UserRole)
+        transform = fftshift(fft2(ifftshift(image)))
+        scaling_c = np.power(10., -1)
+        transform= np.log1p(np.abs(transform) * scaling_c)
+        ventana.w_fft.canvas.ax.imshow(np.abs(transform))
+    else:
+        ventana.w_fft.canvas.ax.clear()
+    ventana.w_fft.canvas.draw()
+
 def imagen_desde_archivo():
     options = QFileDialog.Options()
     # options |= QFileDialog.DontUseNativeDialog
@@ -298,6 +313,7 @@ def seleccionar_filtro(val):
     ventana.w_filtro.canvas.draw()
 
     seleccionar_proyeccion_filtrada()
+    
 
 def seleccionar_im_entrada():
     row = ventana.lw_entrada.currentRow()
@@ -307,6 +323,7 @@ def seleccionar_im_entrada():
     else:
         ventana.w_entrada.canvas.ax.clear()
     ventana.w_entrada.canvas.draw()
+    fft_disp()
 
 def seleccionar_sinograma():
     row = ventana.lw_sinogramas.currentRow()
@@ -329,18 +346,7 @@ def seleccionar_im_salida():
         ventana.w_salida.canvas.ax.clear()
     ventana.w_salida.canvas.draw()
 
-def fft_disp():
-    row = ventana.lw_entrada.currentRow()
-    if row < 0:
-        return
 
-    if row >= 0:
-        image = ventana.lw_entrada.item(row).data(Qt.UserRole)
-        transform = fftshift(fft2(ifftshift(image)))
-        ventana.w_fft.canvas.ax.imshow(np.abs(transform))
-    else:
-        ventana.w_fft.canvas.ax.clear()
-    ventana.w_fft.canvas.draw()
 
 def btn_agregar_entrada_cb():
     image, f = imagen_desde_archivo()
