@@ -246,6 +246,21 @@ def fft_disp():
         ventana.w_fft.canvas.ax.clear()
     ventana.w_fft.canvas.draw()
 
+def fft_radon_disp():
+    row = ventana.lw_salida.currentRow()
+    if row < 0:
+        return
+
+    if row >= 0:
+        image = ventana.lw_salida.item(row).data(Qt.UserRole)
+        transform = fftshift(fft2(ifftshift(image)))
+        scaling_c = np.power(10., -1)
+        transform= np.log1p(np.abs(transform) * scaling_c)
+        ventana.w_fft_2.canvas.ax.imshow(np.abs(transform))
+    else:
+        ventana.w_fft_2.canvas.ax.clear()
+    ventana.w_fft_2.canvas.draw()
+
 def imagen_desde_archivo():
     options = QFileDialog.Options()
     # options |= QFileDialog.DontUseNativeDialog
@@ -269,11 +284,11 @@ def seleccionar_proyeccion():
 
     sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
     j = ventana.sp_proy2.value()
-    if j >= sino.shape[1]:
+    if j > sino.shape[1]:
         ventana.w_proy.canvas.draw()
         return
     
-    ventana.w_proy.canvas.ax.plot(sino[:,j])
+    ventana.w_proy.canvas.ax.plot(sino[:,j-1])
     ventana.w_proy.canvas.ax.grid()
     ventana.w_proy.canvas.draw()
 
@@ -286,11 +301,11 @@ def seleccionar_proyeccion_filtrada():
 
     sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
     j = ventana.sp_proy_filt.value()
-    if j >= sino.shape[1]:
+    if j > sino.shape[1]:
         ventana.w_proy_filt.canvas.draw()
         return
 
-    s = sino[:,j]
+    s = sino[:,j-1]
 
     i_filtro = ventana.cb_filtro_2.currentText()
 
@@ -313,7 +328,7 @@ def seleccionar_filtro(val):
     ventana.w_filtro.canvas.draw()
 
     seleccionar_proyeccion_filtrada()
-    
+
 
 def seleccionar_im_entrada():
     row = ventana.lw_entrada.currentRow()
@@ -345,7 +360,7 @@ def seleccionar_im_salida():
     else:
         ventana.w_salida.canvas.ax.clear()
     ventana.w_salida.canvas.draw()
-
+    fft_radon_disp()
 
 
 def btn_agregar_entrada_cb():

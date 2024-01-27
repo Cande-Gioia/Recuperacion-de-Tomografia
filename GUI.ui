@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>880</width>
-    <height>580</height>
+    <width>1106</width>
+    <height>828</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,11 +18,11 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
-        <string>imagen</string>
+        <string>Imagen</string>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout_14">
         <item>
@@ -37,7 +37,7 @@
                </font>
               </property>
               <property name="text">
-               <string>imagen original</string>
+               <string>Imagen original</string>
               </property>
               <property name="textFormat">
                <enum>Qt::AutoText</enum>
@@ -76,14 +76,14 @@
                 <item>
                  <widget class="QPushButton" name="btn_agregar_entrada">
                   <property name="text">
-                   <string>agregar...</string>
+                   <string>Agregar...</string>
                   </property>
                  </widget>
                 </item>
                 <item>
                  <widget class="QPushButton" name="btn_eliminar_entrada">
                   <property name="text">
-                   <string>eliminar</string>
+                   <string>Eliminar</string>
                   </property>
                  </widget>
                 </item>
@@ -133,7 +133,7 @@
                 <item>
                  <widget class="QPushButton" name="btn_radon">
                   <property name="text">
-                   <string>radón</string>
+                   <string>Radón</string>
                   </property>
                  </widget>
                 </item>
@@ -153,7 +153,7 @@
                </font>
               </property>
               <property name="text">
-               <string>reconstrucción</string>
+               <string>Reconstrucción</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
@@ -186,7 +186,7 @@
                 <item>
                  <widget class="QPushButton" name="btn_eliminar_salida">
                   <property name="text">
-                   <string>eliminar</string>
+                   <string>Eliminar</string>
                   </property>
                  </widget>
                 </item>
@@ -269,7 +269,7 @@
                 <item>
                  <widget class="QPushButton" name="btn_radon_inv">
                   <property name="text">
-                   <string>radón inv</string>
+                   <string>Inversa Radón </string>
                   </property>
                  </widget>
                 </item>
@@ -285,7 +285,7 @@
       </widget>
       <widget class="QWidget" name="tab_2">
        <attribute name="title">
-        <string>sinograma</string>
+        <string>Sinograma</string>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout_15">
         <item>
@@ -300,7 +300,7 @@
                </font>
               </property>
               <property name="text">
-               <string>sinograma</string>
+               <string>Sinograma</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
@@ -333,21 +333,21 @@
                 <item>
                  <widget class="QPushButton" name="btn_agregar_sinograma">
                   <property name="text">
-                   <string>agregar...</string>
+                   <string>Agregar...</string>
                   </property>
                  </widget>
                 </item>
                 <item>
                  <widget class="QPushButton" name="btn_eliminar_sinograma">
                   <property name="text">
-                   <string>eliminar</string>
+                   <string>Eliminar</string>
                   </property>
                  </widget>
                 </item>
                 <item>
                  <widget class="QPushButton" name="btn_radon_inv_2">
                   <property name="text">
-                   <string>radón inv</string>
+                   <string>Inversa Radón</string>
                   </property>
                  </widget>
                 </item>
@@ -449,7 +449,48 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_5">
           <item>
-           <widget class="MplWidget" name="w_fft" native="true"/>
+           <layout class="QVBoxLayout" name="verticalLayout_13" stretch="0,3">
+            <item>
+             <widget class="QLabel" name="label_6">
+              <property name="font">
+               <font>
+                <pointsize>12</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>FFT Original</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="MplWidget" name="w_fft" native="true"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_15" stretch="0,4">
+            <item>
+             <widget class="QLabel" name="label_7">
+              <property name="font">
+               <font>
+                <pointsize>12</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>FFT de la Reconstrucción</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="MplWidget" name="w_fft_2" native="true"/>
+            </item>
+           </layout>
           </item>
          </layout>
         </item>
