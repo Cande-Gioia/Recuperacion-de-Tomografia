@@ -3,12 +3,8 @@ from PyQt5.QtWidgets import QMainWindow, QListWidgetItem, QColorDialog, QFileDia
 from PyQt5.QtCore import Qt, QCoreApplication
 
 import numpy as np
-import matplotlib.pyplot as plt 
-import matplotlib.colors as colors 
 
 from skimage import color, io, util, transform, exposure
-from skimage.data import shepp_logan_phantom
-from skimage.transform import rescale
 
 from pathlib import Path
 
@@ -21,22 +17,66 @@ from scipy import sparse
 from scipy.signal import get_window
 from scipy import optimize
 from scipy import interpolate
-from scipy import ndimage
+
+#para la matriz radon
+from collections import defaultdict
+import concurrent.futures
+
+import time, datetime
+
+
 app = QtWidgets.QApplication([])
 ventana = uic.loadUi("GUI.ui")
 
+#https://stackoverflow.com/questions/65544232/why-is-concurrent-futures-processpoolexecutor-skipping-iterationsc
+import functools
 
+def log_function(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as exc:
+            print(args, kwargs, repr(exc))
+
+    return wrapper
+
+
+
+def cortar_circulo(im):
+    N = im.shape[0]
+    off = (N//2 - 0.5) if N % 2 == 0 else N//2
+    off2 = off*off
+
+    for i in range(N):
+        for j in range(N):
+            d2 = (i-off)*(i-off) + (off-j)*(off-j)
+            if d2 >= off2:
+                im[i, j] = 0
+    
+    return im
+
+def radon_python(im, P):
+    angles = np.arange(0, 180, 180/P)
+    return transform.radon(im, theta=angles)
 
 def radon(im, P):
     angles = np.arange(0, 180, 180/P)
-    return transform.radon(im, theta=angles)
+    N = im.shape[0]
+    s = np.empty((N, P))
+
+    for j in range(P):
+        r = transform.rotate(im, -angles[j])
+        s[:, j] = np.sum(r, axis=0)
+
+    return s
 
 def ri_python(s):
     N = s.shape[0]
     P = s.shape[1]
     angles = np.arange(0, 180, 180/P)
 
-    return transform.iradon(s, theta=angles)
+    return cortar_circulo(transform.iradon(s, theta=angles))
 
 def ri_ART(s):
     N = s.shape[0]
@@ -55,7 +95,7 @@ def ri_ART(s):
             diff = (tmp - temp) / N
             ir = ir + np.tile(diff, (N, 1))
 
-    return ir
+    return cortar_circulo(ir)
 
 def make_filter(filtro, N): 
     freq_resp = abs(np.linspace(-1,1,N))
@@ -99,39 +139,32 @@ def ri_FBP(s):
     s = np.real(ifft(filtproj))
     s = np.swapaxes(s, 0, 1)
 
-
     for i in range(P):
         tmp = np.tile(s[:,i], (N, 1))
         tmp = transform.rotate(tmp, angles[i], order=1, clip=True)
         bp = bp + tmp
 
-    return bp
+    return cortar_circulo(bp)
 
-def ri_fourier(s , im):
-    N = s.shape[0]
+def ri_fourier(s):
+    N = s.shape[0] #fourier_resolution
     P = s.shape[1]
+    angles = np.array([(np.pi*i)/P for i in range(P)])
 
-    angles = np.arange(0, 180, 180/P)
-
-    fourier_resolution =  256
-    image_2D=transform.resize(im,(fourier_resolution,fourier_resolution),mode='constant') 
-   
-    
     s_rotate = transform.rotate(s, 270, resize = True)
     s_rotate = np.array(s_rotate)
     sinogram_fft_rows=fftshift(fft(ifftshift(s_rotate,axes=1)),axes=1)
     
     # Coordinates of sinogram FFT-ed rows' samples in 2D FFT space
-    a=np.array([(np.pi*i)/P for i in range(P)])
-    r=np.arange(fourier_resolution)-fourier_resolution/2
-    r,a=np.meshgrid(r,a)
+    r=np.arange(N)-N/2
+    r,angles=np.meshgrid(r,angles)
     r=r.flatten()
-    a=a.flatten()
-    srcx=(fourier_resolution/2)+r*np.cos(a)
-    srcy=(fourier_resolution/2)+r*np.sin(a)
+    angles=angles.flatten()
+    srcx=(N/2)-r*np.cos(angles)
+    srcy=(N/2)+r*np.sin(angles)
 
     # Coordinates of regular grid in 2D FFT space
-    dstx,dsty=np.meshgrid(np.arange(fourier_resolution),np.arange(fourier_resolution))
+    dstx,dsty=np.meshgrid(np.arange(N),np.arange(N))
     dstx=dstx.flatten()
     dsty=dsty.flatten()
 
@@ -142,7 +175,7 @@ def ri_fourier(s , im):
     (dsty,dstx),#meshgrid
     method='cubic',
     fill_value=0.0
-    ).reshape((fourier_resolution,fourier_resolution))
+    ).reshape((N,N))
 
     # Transform from 2D Fourier space back to a reconstruction of the original image
     fourier_recon=np.real(fftshift(ifft2(ifftshift(fft2))))
@@ -152,7 +185,7 @@ def ri_fourier(s , im):
     out_range=np.float32
 )
     #fourier_recon = colors.Normalize(vmin=0.0, vmax=1)
-    return fourier_recon
+    return cortar_circulo(fourier_recon)
 
 def ri_GC(s):
     N = s.shape[0]
@@ -168,50 +201,72 @@ def ri_GC(s):
         rot_mat.append(np.array([[cos(ang*pi/180), -sin(ang*pi/180)], 
                                  [sin(ang*pi/180), cos(ang*pi/180)]], 
                                  dtype=np.float32))
-
-    col_ptr = np.empty(N*N + 1, dtype=np.int32)
-    q = 0
-    col_ptr[0] = 0
-    row_idx = []
-    vals = []
+    
+    def longitudes_a_indices(a):
+        b = [0]
+        b.extend(a)
+        for i in range(1, len(b)):
+            b[i] += b[i-1]
+        return b
 
     off = (N//2 - 0.5) if N % 2 == 0 else N//2
+    off2 = off*off
     X = Y = np.linspace(-off, +off, N)
 
-    a = 1
+    #el multithreading salió mal (ver más abajo)
+    K_THREADS = 1
+    L = [(N)//K_THREADS for i in range(K_THREADS - 1)]
+    L.append(N - sum(L))
+    I = longitudes_a_indices(L)
 
-    for yi in Y:
-        for xi in X:
-            for r, rot in enumerate(rot_mat):
-                v = (rot @ [xi,yi])
-
-                if v[0] < -off or v[0] > off or v[1] < -off or v[1] > off:
+    col_q = [np.empty(L[i]*N, dtype=np.int32) for i in range(K_THREADS)]
+    row_idx = [[] for i in range(K_THREADS)]
+    vals = [[] for i in range(K_THREADS)]
+    
+    def thread_generar_matriz(n):
+        a = 0
+        for yi in Y[I[n]:I[n+1]]:
+            for xi in X:
+                if xi*xi + yi*yi >= off2:
+                    col_q[n][a] = 0
+                    a += 1
                     continue
 
-                x = v[0]+off
-                y = off-v[1]
-                xint = int(x)
-                yint = int(y)
-                xm = x - xint
-                ym = y - yint
+                fila = defaultdict(lambda: 0)
 
-                if xm < 0.001:
-                    row_idx.append(xint*P + r)
-                    vals.append(1)
-                    q += 1
-                elif xm > 0.999:
-                    row_idx.append((xint+1)*P + r)
-                    vals.append(1)
-                    q += 1
-                else:
-                    row_idx.extend([xint*P + r, (xint+1)*P + r])
-                    vals.extend([(1-xm),xm])
-                    q += 2
-            
-            col_ptr[a] = q
-            a += 1
+                for r, rot in enumerate(rot_mat):
+                    v = (rot @ [xi,yi])
 
-    A = sparse.csc_array((vals, row_idx, col_ptr), shape=(N*P, N*N)) #esta es la matriz, notar que es dispersa (sino no alcanza la memoria)
+                    x = v[0]+off
+                    y = off-v[1]
+                    xint = int(x)
+                    yint = int(y)
+                    xm = x - xint
+                    ym = y - yint
+
+                    if xm < 0.001:
+                        fila[xint*P + r] += 1
+                    elif xm > 0.999:
+                        fila[(xint+1)*P + r] += 1
+                    else:
+                        fila[xint*P + r] += 1-xm
+                        fila[(xint+1)*P + r] += xm
+
+                fila_ordenada = sorted(fila.items())
+
+                row_idx[n].extend([x[0] for x in fila_ordenada])
+                vals[n].extend([x[1] for x in fila_ordenada])
+                col_q[n][a] = len(fila)
+                a += 1
+
+    #sin éxito: ThreadPoolExcecutor hace el cómputo más lento y ProcessPoolExcecutor crashea porque hay que usar multiprocessing.manager.list para indicar que los elementos están compartidos
+    #lo cual lo hace aún más lento y no sé por qué
+    #excecutor = concurrent.futures.ThreadPoolExecutor()
+    #results = excecutor.map(thread_generar_matriz, range(K_THREADS))
+    #excecutor.shutdown(wait=True)
+    thread_generar_matriz(0)
+
+    A = sparse.csc_array((np.concatenate(vals), np.concatenate(row_idx), longitudes_a_indices(np.concatenate(col_q))), shape=(N*P, N*N)) #esta es la matriz, notar que es dispersa (sino no alcanza la memoria)
     b = s.flatten()
 
     # con la matriz A generada en el paso previo, y con la entrada que es b (sinograma),
@@ -227,53 +282,54 @@ def ri_GC(s):
 
     res = optimize.minimize(f, x0, method='Newton-CG', jac=gradf, options={'maxiter':10})
 
-    return res.x.reshape(N, N)
+    return cortar_circulo(res.x.reshape(N, N))
 
 radon_inv_callbacks = [ri_python, ri_ART, ri_FBP, ri_fourier, ri_GC]
 
 def fft_disp():
+    ventana.w_fft.canvas.ax.clear()
     row = ventana.lw_entrada.currentRow()
     if row < 0:
+        ventana.w_fft.canvas.draw()
         return
 
-    if row >= 0:
-        image = ventana.lw_entrada.item(row).data(Qt.UserRole)
-        transform = fftshift(fft2(ifftshift(image)))
-        scaling_c = np.power(10., -1)
-        transform= np.log1p(np.abs(transform) * scaling_c)
-        ventana.w_fft.canvas.ax.imshow(np.abs(transform))
-    else:
-        ventana.w_fft.canvas.ax.clear()
+    image = ventana.lw_entrada.item(row).data(Qt.UserRole)
+    transform = fftshift(fft2(ifftshift(image)))
+    scaling_c = np.power(10., -1)
+    transform= np.log1p(np.abs(transform) * scaling_c)
+    ventana.w_fft.canvas.ax.imshow(np.abs(transform))
     ventana.w_fft.canvas.draw()
 
 def fft_radon_disp():
+    ventana.w_fft_2.canvas.ax.clear()
     row = ventana.lw_salida.currentRow()
     if row < 0:
+        ventana.w_fft.canvas.draw()
         return
 
-    if row >= 0:
-        image = ventana.lw_salida.item(row).data(Qt.UserRole)
-        transform = fftshift(fft2(ifftshift(image)))
-        scaling_c = np.power(10., -1)
-        transform= np.log1p(np.abs(transform) * scaling_c)
-        ventana.w_fft_2.canvas.ax.imshow(np.abs(transform))
-    else:
-        ventana.w_fft_2.canvas.ax.clear()
+    image = ventana.lw_salida.item(row).data(Qt.UserRole)
+    transform = fftshift(fft2(ifftshift(image)))
+    scaling_c = np.power(10., -1)
+    transform= np.log1p(np.abs(transform) * scaling_c)
+    ventana.w_fft_2.canvas.ax.imshow(np.abs(transform))
     ventana.w_fft_2.canvas.draw()
 
 def imagen_desde_archivo():
-    options = QFileDialog.Options()
-    # options |= QFileDialog.DontUseNativeDialog
-    f, _ = QFileDialog.getOpenFileName(ventana, "Select files", "","All Files (*);;JPG files (*.jpg);;PNG files (*.png)", options=options)
+    try:
+        options = QFileDialog.Options()
+        # options |= QFileDialog.DontUseNativeDialog
+        f, _ = QFileDialog.getOpenFileName(ventana, "Select files", "","All Files (*);;JPG files (*.jpg);;PNG files (*.png)", options=options)
 
-    if f == '':
+        if f == '':
+            return None, ''
+
+        input = io.imread(f)
+        image = util.img_as_float32(transform.resize(input, (256, 256), anti_aliasing=True))[...,0]
+        assert len(image.shape) == 2 and image.shape[0] == image.shape[1]
+
+        return cortar_circulo(image), f
+    except:
         return None, ''
-
-    input = io.imread(f)
-    image = util.img_as_float32(transform.resize(input, (256, 256), anti_aliasing=True))[...,0]
-    assert len(image.shape) == 2 and image.shape[0] == image.shape[1]
-
-    return image, f
 
 def seleccionar_proyeccion():
     ventana.w_proy.canvas.ax.clear()
@@ -365,8 +421,8 @@ def seleccionar_im_salida():
 
 def btn_agregar_entrada_cb():
     image, f = imagen_desde_archivo()
-    #if not image:  #comentado porque si no crashea
-    #    return
+    if not isinstance(image, np.ndarray):  #comentado porque si no crashea
+        return
 
     qlwt = QListWidgetItem()
     qlwt.setData(Qt.UserRole, image)
@@ -379,7 +435,7 @@ def btn_agregar_entrada_cb():
 
 def btn_agregar_sinograma_cb(): 
     image, f = imagen_desde_archivo()    
-    if not image:
+    if not isinstance(image, np.ndarray):
         return
 
     qlwt = QListWidgetItem()
@@ -418,31 +474,28 @@ def btn_radon_cb():
     ventana.lw_sinogramas.addItem(qlwt)
     ventana.lw_sinogramas.setCurrentRow(ventana.lw_sinogramas.count() - 1)
     seleccionar_sinograma()
-    
-
-
 
 def btn_radon_inv_cb():
     row = ventana.lw_sinogramas.currentRow()
-    row2 = ventana.lw_entrada.currentRow()
     if row < 0:
         return
-    elif row2 < 0:
-        return
-    
-
-
-    image = ventana.lw_entrada.item(row2).data(Qt.UserRole)
     
     sino = ventana.lw_sinogramas.item(row).data(Qt.UserRole)
-
     metodo = ventana.cb_metodo.currentIndex()
 
-    if metodo == 3 :
-         reconstruccion = radon_inv_callbacks[metodo](sino, image)
-    else:
-        reconstruccion = radon_inv_callbacks[metodo](sino)
+    start = time.process_time()
+    reconstruccion = radon_inv_callbacks[metodo](sino)
+    print('TIEMPO TRANSCURRIDO: '+str(datetime.timedelta(seconds=(time.process_time() - start))))
+
+    #asumo que la imagen seleccionada es la original: esto sólo sirve para obtener el error y comparar los métodos
+    row = ventana.lw_entrada.currentRow()
+    if row >= 0:
+        image = ventana.lw_entrada.item(row).data(Qt.UserRole)
+        print("ERRROR: "+str(np.linalg.norm(reconstruccion - image)))
+    
+
     nombre = ventana.lw_sinogramas.item(row).text()
+
     i = nombre.rindex("_")
     if i != -1:
         nombre = nombre[:i]
