@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QCoreApplication
 
 import numpy as np
 
-from skimage import color, io, util, transform, exposure, metrics
+from skimage import color, io, util, transform, exposure, metrics, data
 
 from pathlib import Path
 
@@ -24,6 +24,9 @@ import concurrent.futures
 
 import time, datetime
 
+import traceback
+import logging
+
 
 app = QtWidgets.QApplication([])
 ventana = uic.loadUi("GUI.ui")
@@ -40,8 +43,6 @@ def log_function(func):
             print(args, kwargs, repr(exc))
 
     return wrapper
-
-
 
 def cortar_circulo(im):
     N = im.shape[0]
@@ -70,6 +71,8 @@ def radon(im, P):
         s[:, j] = np.sum(r, axis=0)
 
     return s
+
+## MÉTODOS DE RECONSTRUCCIÓN
 
 def ri_python(s):
     N = s.shape[0]
@@ -262,10 +265,12 @@ def ri_GC(s):
                 a += 1
 
     #sin éxito: ThreadPoolExcecutor hace el cómputo más lento y ProcessPoolExcecutor crashea porque hay que usar multiprocessing.manager.list para indicar que los elementos están compartidos
-    #lo cual lo hace aún más lento y no sé por qué
+    #lo cual lo hace aún más lento cuando utilizo manager.list en lugar de arreglos ordinarios y no sé por qué
     #excecutor = concurrent.futures.ThreadPoolExecutor()
     #results = excecutor.map(thread_generar_matriz, range(K_THREADS))
     #excecutor.shutdown(wait=True)
+    
+    #Computo la matriz sólo con el thread principal
     thread_generar_matriz(0)
 
     A = sparse.csc_array((np.concatenate(vals), np.concatenate(row_idx), longitudes_a_indices(np.concatenate(col_q))), shape=(N*P, N*N)) #esta es la matriz, notar que es dispersa (sino no alcanza la memoria)
@@ -290,6 +295,10 @@ def ri_GC(s):
     return cortar_circulo(res.x.reshape(N, N))
 
 radon_inv_callbacks = [ri_python, ri_ART, ri_FBP, ri_fourier, ri_GC]
+
+## FIN MÉTODOS DE RECONSTRUCCIÓN
+
+## FUNCIONES DE INTERFAZ
 
 def fft_disp():
     ventana.w_fft.canvas.ax.clear()
@@ -329,12 +338,14 @@ def imagen_desde_archivo():
             return None, ''
 
         input = io.imread(f)
-        image = util.img_as_float32(transform.resize(input, (256, 256), anti_aliasing=True))[...,0]
+        image = util.img_as_float32(transform.resize(input, (256, 256), anti_aliasing=True))
+        if len(image.shape) == 3:
+            image = image[...,0]
         assert len(image.shape) == 2 and image.shape[0] == image.shape[1]
 
         return cortar_circulo(image), f
     except Exception as e:
-        print(str(e))
+        logging.error(traceback.format_exc())
         return None, ''
 
 def seleccionar_proyeccion():
@@ -508,11 +519,12 @@ def btn_radon_inv_cb():
 
     qlwt = QListWidgetItem()
     qlwt.setData(Qt.UserRole, reconstruccion)
-    qlwt.setText(nombre+"_rec")
+    qlwt.setText(nombre+"_"+ventana.cb_metodo.currentText())
     ventana.lw_salida.addItem(qlwt)
     ventana.lw_salida.setCurrentRow(ventana.lw_salida.count() - 1)
     seleccionar_im_salida()
 
+## FIN FUNCIONES DE INTERFAZ
 
 if __name__ == "__main__":
     ventana.sp_proy1.setValue(180)
@@ -533,6 +545,17 @@ if __name__ == "__main__":
     ventana.btn_radon_inv.clicked.connect(btn_radon_inv_cb)
     ventana.btn_radon_inv_2.clicked.connect(btn_radon_inv_cb)
 
+    qlwt = QListWidgetItem()
+    slimage = util.img_as_float32(transform.resize(data.shepp_logan_phantom(), (256, 256), anti_aliasing=True))
+    qlwt.setData(Qt.UserRole, slimage)
+    qlwt.setText('slphantom')
+    ventana.lw_entrada.addItem(qlwt)
+    ventana.lw_entrada.setCurrentRow(ventana.lw_entrada.count() - 1)
+    seleccionar_im_entrada()
+    fft_disp()
+
     ventana.show()
     app.exec()
+
+
 
