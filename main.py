@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt, QCoreApplication
 
 import numpy as np
 
-from skimage import color, io, util, transform, exposure
+from skimage import color, io, util, transform, exposure, metrics
 
 from pathlib import Path
 
@@ -192,6 +192,8 @@ def ri_GC(s):
     P = s.shape[1]
     angles = np.arange(0, 180, 180/P)
 
+    start2 = time.process_time()
+
     pi = np.pi
     cos = np.cos
     sin = np.sin
@@ -269,6 +271,9 @@ def ri_GC(s):
     A = sparse.csc_array((np.concatenate(vals), np.concatenate(row_idx), longitudes_a_indices(np.concatenate(col_q))), shape=(N*P, N*N)) #esta es la matriz, notar que es dispersa (sino no alcanza la memoria)
     b = s.flatten()
 
+
+    print('TIEMPO TRANSCURRIDO MATRIZ RADON: '+str(datetime.timedelta(seconds=(time.process_time() - start2))))
+
     # con la matriz A generada en el paso previo, y con la entrada que es b (sinograma),
     # aproximo la inversa de la transformación
     # para eso, minimizo el campo f(x) = ||Ax-b||
@@ -328,7 +333,8 @@ def imagen_desde_archivo():
         assert len(image.shape) == 2 and image.shape[0] == image.shape[1]
 
         return cortar_circulo(image), f
-    except:
+    except Exception as e:
+        print(str(e))
         return None, ''
 
 def seleccionar_proyeccion():
@@ -451,8 +457,8 @@ def btn_eliminar_entrada_cb():
     ventana.lw_entrada.setCurrentRow(ventana.lw_entrada.count() - 1)
 
 def btn_eliminar_salida_cb():
-    ventana.lw_salida.takeItem(ventana.lw_sinogramas.currentRow())
-    ventana.lw_salida.setCurrentRow(ventana.lw_sinogramas.count() - 1)
+    ventana.lw_salida.takeItem(ventana.lw_salida.currentRow())
+    ventana.lw_salida.setCurrentRow(ventana.lw_salida.count() - 1)
 
 def btn_eliminar_sinograma_cb():
     ventana.lw_sinogramas.takeItem(ventana.lw_sinogramas.currentRow())
